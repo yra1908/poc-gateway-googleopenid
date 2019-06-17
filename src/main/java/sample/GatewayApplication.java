@@ -25,10 +25,12 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.cloud.security.oauth2.gateway.TokenRelayGatewayFilterFactory;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.web.server.OAuth2AuthorizationRequestRedirectWebFilter;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
@@ -46,6 +48,12 @@ public class GatewayApplication {
 
 	@Autowired
 	private MyGatewayFilterFactory myFilter;
+
+	@Autowired
+	public OAuth2AuthorizationRequestRedirectWebFilter redirectWebFilter;
+
+	@Autowired
+	public AuthenticationFilter authenticationFilter;
 
 	@Bean
 	public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
@@ -73,9 +81,11 @@ public class GatewayApplication {
 //				.and()
 //				.formLogin()
 				.and()
-//				.addFilterAt()
-				.oauth2Login()
-				.and()
+				.addFilterAt(redirectWebFilter, SecurityWebFiltersOrder.FORM_LOGIN)
+				.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+//				.and()
+//				.oauth2Login()
+//				.and()
 				.exceptionHandling()
 				// NOTE:
 				// This configuration is needed to perform the auto-redirect to UAA for authentication.

@@ -4,11 +4,20 @@ server:
 logging:
   level:
     root: INFO
-    org.springframework.web: INFO
+    org.springframework.web: DEBUG
     org.springframework.security: DEBUG
-    org.springframework.security.oauth2: INFO
+    org.springframework.security.oauth2: DEBUG
     org.springframework.cloud.gateway: INFO
 #    org.springframework.boot.autoconfigure: DEBUG
+
+provider:
+  clientId: 601704593845-8nbsaqf58sk03plpd6cqd5snskc2v6du.apps.googleusercontent.com
+  clientSecret: zagh_7IO13dNJwNVir24iL3D
+  accessTokenUri: https://oauth2.googleapis.com/token
+  userAuthorizationUri: https://accounts.google.com/o/oauth2/auth
+  redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  issuer: accounts.google.com
+  jwkUrl: https://www.googleapis.com/oauth2/v2/certs
 
 spring:
   autoconfigure:
