@@ -1,8 +1,12 @@
 package sample;
 
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.oauth2.client.ClientAuthorizationRequiredException;
 import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -13,9 +17,15 @@ import org.springframework.security.oauth2.client.web.server.ServerOAuth2Authori
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.security.web.server.authentication.HttpBasicServerAuthenticationEntryPoint;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
 import org.springframework.security.web.server.authentication.ServerAuthenticationEntryPointFailureHandler;
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler;
+import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.WebFilterChainServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import org.springframework.security.web.server.context.ServerSecurityContextRepository;
+import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 import org.springframework.web.client.RestTemplate;
@@ -30,7 +40,11 @@ public class AuthenticationFilter extends AuthenticationWebFilter {
     private ServerWebExchangeMatcher requiresAuthenticationMatcher;
     private ServerAuthenticationConverter authenticationConverter;
     private ServerOAuth2AuthorizedClientRepository authorizedClientRepository;
-    private ServerAuthenticationFailureHandler authenticationFailureHandler = new ServerAuthenticationEntryPointFailureHandler(new HttpBasicServerAuthenticationEntryPoint());
+    private ServerSecurityContextRepository securityContextRepository = new WebSessionServerSecurityContextRepository();
+    private ServerAuthenticationSuccessHandler authenticationSuccessHandler = new RedirectServerAuthenticationSuccessHandler();
+    private ServerAuthenticationFailureHandler authenticationFailureHandler =
+            new ServerAuthenticationEntryPointFailureHandler(new HttpBasicServerAuthenticationEntryPoint());
+    ;
 
     public AuthenticationFilter(ReactiveAuthenticationManager authenticationManager) {
         super(authenticationManager);
@@ -55,25 +69,44 @@ public class AuthenticationFilter extends AuthenticationWebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+       /* return this.requiresAuthenticationMatcher.matches(exchange).filter((matchResult) -> {
+            return matchResult.isMatch();
+        }).flatMap((matchResult) -> {
+            return this.authenticationConverter.convert(exchange);
+        }).switchIfEmpty(chain.filter(exchange).then(Mono.empty())).flatMap((token) -> {
+            return this.authenticate(exchange, chain, token);
+        });*/
         return isNeedAuth(exchange)
-            .filter((matchResult) -> {return matchResult.isMatch();  })
-            .flatMap((matchResult) -> { return this.convertValidate(exchange);})
-            .switchIfEmpty(chain.filter(exchange)
-                    .then(Mono.error(new ClientAuthorizationRequiredException("login-client"))))
-            .flatMap((token) -> {
-                return this.authenticate(exchange, chain, token);
-            });
+                .filter((matchResult) -> {
+                    return matchResult.isMatch();
+                })
+                .flatMap((matchResult) -> {
+                    return this.convertValidate(exchange);
+                })
+                .switchIfEmpty(chain.filter(exchange).then(
+                        Mono.just(ReactiveSecurityContextHolder.getContext()
+                                .filter(c -> c.getAuthentication() != null)
+                                .switchIfEmpty(Mono.error(new ClientAuthorizationRequiredException("login-client")))
+                                .flatMap((a) ->  return Mono.empty())
+                        ))
+                .flatMap((token) -> {
+            return this.authenticate(exchange, chain, token);
+        });
     }
 
     private void throwException() {
         Mono.just(new ClientAuthorizationRequiredException("login-client"));
     }
 
-    private Mono<ServerWebExchangeMatcher.MatchResult> isNeedAuth(ServerWebExchange exchange){
+    private Mono<ServerWebExchangeMatcher.MatchResult> isNeedAuth(ServerWebExchange exchange) {
         return this.requiresAuthenticationMatcher.matches(exchange);
     }
 
-    private Mono<Authentication> convertValidate(ServerWebExchange exchange){
+    public Mono<Boolean> isAuth() {
+        return ((Mono) ReactiveSecurityContextHolder.getContext().filter((c) -> c.getAuthentication() != null));
+    }
+
+    private Mono<Authentication> convertValidate(ServerWebExchange exchange) {
         return this.authenticationConverter.convert(exchange);
     }
 
@@ -111,13 +144,19 @@ public class AuthenticationFilter extends AuthenticationWebFilter {
                 authenticationResult.getName(),
                 authenticationResult.getAccessToken(),
                 authenticationResult.getRefreshToken());
-        OAuth2AuthenticationToken result =  new OAuth2AuthenticationToken(
+        OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(
                 authenticationResult.getPrincipal(),
                 authenticationResult.getAuthorities(),
                 authenticationResult.getClientRegistration().getRegistrationId());
         return this.authorizedClientRepository
                 .saveAuthorizedClient(authorizedClient, authenticationResult, webFilterExchange.getExchange())
-                .then(super.onAuthenticationSuccess(result, webFilterExchange));
+                .then(onAuthenticationSuccess(result, webFilterExchange));
     }
 
+    protected Mono<Void> onAuthenticationSuccessN(Authentication authentication, WebFilterExchange webFilterExchange) {
+        ServerWebExchange exchange = webFilterExchange.getExchange();
+        SecurityContextImpl securityContext = new SecurityContextImpl();
+        securityContext.setAuthentication(authentication);
+        return this.securityContextRepository.save(exchange, securityContext).then(this.authenticationSuccessHandler.onAuthenticationSuccess(webFilterExchange, authentication)).subscriberContext(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(securityContext)));
+    }
 }
