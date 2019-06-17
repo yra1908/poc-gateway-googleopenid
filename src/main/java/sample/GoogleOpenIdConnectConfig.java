@@ -6,14 +6,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.server.AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.OAuth2AuthorizationRequestRedirectWebFilter;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationCodeAuthenticationTokenConverter;
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -91,6 +95,7 @@ public class GoogleOpenIdConnectConfig {
         authenticationFilter.setAuthenticationConverter(authenticationConverter());
         authenticationFilter.setRestTemplate(vanilaRestTemplatye);
         authenticationFilter.setLoginEntryPoint("/login/oauth2/code/login-client");
+        authenticationFilter.setAuthorizedClientRepository(serverOAuth2AuthorizedClientRepository());
         return authenticationFilter;
     }
 
@@ -105,6 +110,16 @@ public class GoogleOpenIdConnectConfig {
 
         return reactiveAuthenticationManager;
 
+    }
+
+    @Bean
+    public ReactiveOAuth2AuthorizedClientService oAuth2AuthorizedClientService(){
+        return new InMemoryReactiveOAuth2AuthorizedClientService(registrationRepository());
+    }
+
+    @Bean
+    public ServerOAuth2AuthorizedClientRepository serverOAuth2AuthorizedClientRepository(){
+        return new AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository(oAuth2AuthorizedClientService());
     }
 
     /*private static class StatelessAuthenticationMaanager implements ReactiveAuthenticationManager {
