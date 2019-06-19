@@ -52,6 +52,7 @@ public class GatewaySecurityConfiguration {
     @Autowired
     private JWTServiceGoogle jwtService;
 
+    @Bean
     public ClientRegistration clientRegistration() {
         return ClientRegistration
             .withRegistrationId("login-client")
@@ -74,10 +75,10 @@ public class GatewaySecurityConfiguration {
             .anyExchange().authenticated()
             .and()
             .oauth2Login()
-                .authenticationConverter(buildInAuthenticationConverter())
-                .clientRegistrationRepository(registrationRepository())
-                .authorizedClientService(clientService())
-                .authenticationManager(buildInReactiveAuthenticationManager())
+//                .authenticationConverter(buildInAuthenticationConverter())
+//                .clientRegistrationRepository(registrationRepository())
+//                .authorizedClientService(clientService())
+//                .authenticationManager(buildInReactiveAuthenticationManager())
             .and()
             .addFilterAt(tokenAuthFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
             .exceptionHandling()

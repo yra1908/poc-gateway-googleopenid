@@ -4,6 +4,7 @@ import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.jwt.Jwt;
@@ -58,22 +59,8 @@ public class JWTServiceGoogle implements JWTService {
     @Value("${provider.jwkUrl}")
     private String jwkUrl;
 
-
-
-    public ClientRegistration clientRegistration() {
-        return ClientRegistration
-            .withRegistrationId("login-client")
-            .clientId(clientId)
-            .clientSecret(clientSecret)
-            .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-            .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
-            .redirectUriTemplate(redirectUri)
-            .scope(Arrays.asList("openid", "profile"))
-            .authorizationUri(userAuthorizationUri)
-            .tokenUri(accessTokenUri)
-            .jwkSetUri(jwkUrl)
-            .build();
-    }
+    @Autowired
+    public ClientRegistration clientRegistration;
 
     public Mono<Authentication> retrieveAuthenticationFromToken(String idToken){
         try {
@@ -99,8 +86,7 @@ public class JWTServiceGoogle implements JWTService {
                     .redirectUri(redirectUri)
                     .state("random")
                     .build());
-            return Mono.just(new OAuth2LoginAuthenticationToken(clientRegistration(), exchangeStub, user, user.getAuthorities(), accessToken, null));
-//            return new OAuth2AuthorizationCodeAuthenticationToken(clientRegistration(), exchangeStub, accessToken);
+            return Mono.just(new OAuth2LoginAuthenticationToken(clientRegistration, exchangeStub, user, user.getAuthorities(), accessToken, null));
         } catch (Exception e) {
             e.printStackTrace();
             return Mono.empty();
