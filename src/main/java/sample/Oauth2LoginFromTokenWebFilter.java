@@ -10,12 +10,9 @@ import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuth
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
-import org.springframework.security.oauth2.client.web.server.ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
-import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
@@ -34,12 +31,12 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
     }
 
     public Oauth2LoginFromTokenWebFilter(JWTServiceGoogle jwtService, ServerOAuth2AuthorizedClientRepository requestRepository) {
-        this(getAuthManagerStub() , jwtService);
+        this(getAuthManagerStub(), jwtService);
         this.requestRepository = requestRepository;
     }
 
     private static ReactiveAuthenticationManager getAuthManagerStub() {
-        return  new OidcAuthorizationCodeReactiveAuthenticationManager(
+        return new OidcAuthorizationCodeReactiveAuthenticationManager(
             new WebClientReactiveAuthorizationCodeTokenResponseClient(),
             new OidcReactiveOAuth2UserService()
         );
@@ -78,7 +75,7 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
     }
 
     protected Mono<Void> onAuthenticationSuccess(Authentication authentication, WebFilterExchange webFilterExchange) {
-        OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken)authentication;
+        OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken) authentication;
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());
         return this.requestRepository.saveAuthorizedClient(authorizedClient, authenticationResult, webFilterExchange.getExchange()).then(super.onAuthenticationSuccess(result, webFilterExchange));

@@ -12,8 +12,6 @@ import org.springframework.security.jwt.JwtHelper;
 import org.springframework.security.jwt.crypto.sign.RsaVerifier;
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -62,7 +60,7 @@ public class JWTServiceGoogle implements JWTService {
     @Autowired
     public ClientRegistration clientRegistration;
 
-    public Mono<Authentication> retrieveAuthenticationFromToken(String idToken){
+    public Mono<Authentication> retrieveAuthenticationFromToken(String idToken) {
         try {
             String kid = JwtHelper.headers(idToken).get("kid");
             Jwt tokenDecoded = JwtHelper.decodeAndVerify(idToken, verifier(kid));
@@ -71,9 +69,9 @@ public class JWTServiceGoogle implements JWTService {
             Instant exp = Instant.ofEpochSecond((Integer) authInfo.get("exp"));
             verifyClaims(authInfo);
             OidcIdToken token = new OidcIdToken(idToken, at, exp, authInfo);
-            OAuth2User user =  new DefaultOidcUser(Collections.singletonList(new OidcUserAuthority(token)), token);
+            OAuth2User user = new DefaultOidcUser(Collections.singletonList(new OidcUserAuthority(token)), token);
             Set<String> scopes = new HashSet<>(Arrays.asList("openid", "profile", "email"));
-            OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, idToken,at, exp,  scopes);
+            OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, idToken, at, exp, scopes);
             OAuth2AuthorizationExchange exchangeStub = new OAuth2AuthorizationExchange(
                 OAuth2AuthorizationRequest.authorizationCode()
                     .authorizationUri(userAuthorizationUri)
