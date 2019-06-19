@@ -68,23 +68,16 @@ public class GatewaySecurityConfiguration {
     }
 
     @Bean
-    public ReactiveClientRegistrationRepository registrationRepository() {
-        InMemoryReactiveClientRegistrationRepository clientRegistrationsRepo =
-            new InMemoryReactiveClientRegistrationRepository(clientRegistration());
-        return clientRegistrationsRepo;
-    }
-
-    @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
             .authorizeExchange()
             .anyExchange().authenticated()
             .and()
             .oauth2Login()
-                .authenticationConverter(tokenAuthenticationConverter())
+                .authenticationConverter(buildInAuthenticationConverter())
                 .clientRegistrationRepository(registrationRepository())
                 .authorizedClientService(clientService())
-                .authenticationManager(reactiveAuthenticationManager())
+                .authenticationManager(buildInReactiveAuthenticationManager())
             .and()
             .addFilterAt(tokenAuthFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
             .exceptionHandling()
@@ -92,36 +85,15 @@ public class GatewaySecurityConfiguration {
             .build();
     }
 
+    private Oauth2LoginFromTokenWebFilter tokenAuthFilter(){
+        return new Oauth2LoginFromTokenWebFilter(jwtService, clientRepository());
+    }
 
-//    @Bean
     public ReactiveAuthenticationManager buildInReactiveAuthenticationManager() {
         return new OidcAuthorizationCodeReactiveAuthenticationManager(
             new WebClientReactiveAuthorizationCodeTokenResponseClient(),
             new OidcReactiveOAuth2UserService()
         );
-    }
-
-//    @Bean
-    public ReactiveAuthenticationManager reactiveAuthenticationManager() {
-        return authentication -> {
-            boolean stub = true;
-            if (stub) {
-                return buildInReactiveAuthenticationManager().authenticate(authentication);
-            }
-            return Mono.just(authentication);
-        };
-    }
-
-
-    private ServerAuthenticationConverter tokenAuthenticationConverter() {
-        return serverWebExchange -> {
-            String authorization = serverWebExchange.getRequest()
-                .getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            if (authorization == null || !authorization.startsWith("Bearer ")) {
-                return buildInAuthenticationConverter().convert(serverWebExchange);
-            }
-            return jwtService.retrieveAuthenticationFromToken(authorization.substring("Bearer ".length()));
-        };
     }
 
     private ServerAuthenticationConverter buildInAuthenticationConverter() {
@@ -132,6 +104,13 @@ public class GatewaySecurityConfiguration {
     }
 
     @Bean
+    public ReactiveClientRegistrationRepository registrationRepository() {
+        InMemoryReactiveClientRegistrationRepository clientRegistrationsRepo =
+            new InMemoryReactiveClientRegistrationRepository(clientRegistration());
+        return clientRegistrationsRepo;
+    }
+
+    @Bean
     public ReactiveOAuth2AuthorizedClientService clientService(){
         return new InMemoryReactiveOAuth2AuthorizedClientService(registrationRepository());
     }
@@ -139,10 +118,6 @@ public class GatewaySecurityConfiguration {
     @Bean
     public ServerOAuth2AuthorizedClientRepository clientRepository(){
         return new AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository(clientService());
-    }
-
-    private Oauth2LoginFromTokenWebFilter tokenAuthFilter(){
-        return new Oauth2LoginFromTokenWebFilter(jwtService, clientRepository());
     }
 
 }

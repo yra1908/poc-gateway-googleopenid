@@ -81,7 +81,6 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
         OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken)authentication;
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());
-        //return super.onAuthenticationSuccess(result, webFilterExchange);
         return this.requestRepository.saveAuthorizedClient(authorizedClient, authenticationResult, webFilterExchange.getExchange()).then(super.onAuthenticationSuccess(result, webFilterExchange));
     }
 }
