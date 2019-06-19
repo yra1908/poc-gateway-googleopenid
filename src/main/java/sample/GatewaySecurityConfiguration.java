@@ -10,6 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
@@ -27,9 +28,6 @@ import java.util.Arrays;
 
 @Configuration
 public class GatewaySecurityConfiguration {
-
-    @Autowired
-    public JWTService jwtService;
 
     @Value("${provider.clientId}")
     private String clientId;
@@ -49,23 +47,27 @@ public class GatewaySecurityConfiguration {
     @Value("${provider.jwkUrl}")
     private String jwkUrl;
 
-   public ClientRegistration clientRegistration() {
+    @Autowired
+    private JWTService jwtService;
+
+    @Bean
+    public ClientRegistration clientRegistration() {
         return ClientRegistration
-                .withRegistrationId("login-client")
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
-                .redirectUriTemplate(redirectUri)
-                .scope(Arrays.asList("openid", "profile"))
-                .authorizationUri(userAuthorizationUri)
-                .tokenUri(accessTokenUri)
-                .jwkSetUri(jwkUrl)
-                .build();
+            .withRegistrationId("login-client")
+            .clientId(clientId)
+            .clientSecret(clientSecret)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
+            .redirectUriTemplate(redirectUri)
+            .scope(Arrays.asList("openid", "profile"))
+            .authorizationUri(userAuthorizationUri)
+            .tokenUri(accessTokenUri)
+            .jwkSetUri(jwkUrl)
+            .build();
     }
 
     @Bean
-    public ReactiveClientRegistrationRepository registrationRepository(){
+    public ReactiveClientRegistrationRepository registrationRepository() {
         InMemoryReactiveClientRegistrationRepository clientRegistrationsRepo =
             new InMemoryReactiveClientRegistrationRepository(clientRegistration());
         return clientRegistrationsRepo;
@@ -78,24 +80,24 @@ public class GatewaySecurityConfiguration {
             .anyExchange().authenticated()
             .and()
             .oauth2Login()
-                .authenticationConverter(tokenAuthenticationConverter())
-                .clientRegistrationRepository(registrationRepository())
-                .authorizedClientService(buildInAuthorizedClientService())
-                .authenticationManager(buildInReactiveAuthenticationManager())
+            .authenticationConverter(tokenAuthenticationConverter())
+            .clientRegistrationRepository(registrationRepository())
+            .authorizedClientService(buildInAuthorizedClientService())
+            .authenticationManager(buildInReactiveAuthenticationManager())
             .and()
             .exceptionHandling()
             .and()
             .build();
     }
 
-    @Bean
-    public ReactiveOAuth2AuthorizedClientService buildInAuthorizedClientService(){
-       return new InMemoryReactiveOAuth2AuthorizedClientService(
-           new InMemoryReactiveClientRegistrationRepository(clientRegistration()));
+//    @Bean
+    public ReactiveOAuth2AuthorizedClientService buildInAuthorizedClientService() {
+        return new InMemoryReactiveOAuth2AuthorizedClientService(
+            new InMemoryReactiveClientRegistrationRepository(clientRegistration()));
     }
 
 
-    @Bean
+//    @Bean
     public ReactiveAuthenticationManager buildInReactiveAuthenticationManager() {
         return new OidcAuthorizationCodeReactiveAuthenticationManager(
             new WebClientReactiveAuthorizationCodeTokenResponseClient(),
@@ -105,26 +107,9 @@ public class GatewaySecurityConfiguration {
 
     /*@Bean
     public ReactiveAuthenticationManager reactiveAuthenticationManager() {
-//        return new OidcAuthorizationCodeReactiveAuthenticationManager(
-//            new WebClientReactiveAuthorizationCodeTokenResponseClient(),
-//            new OidcReactiveOAuth2UserService()
-//        );
         return authentication -> {
-            OpenIdConnectUserDetails user = null;
-            String idToken = (String) authentication.getCredentials();
-            try {
-                JWTClaimsSet claims = null;
-                String kid = JwtHelper.headers(idToken).get("kid");
-                Jwt tokenDecoded = JwtHelper.decodeAndVerify(idToken, verifier(kid));
-                Map<String, Object> authInfo = new ObjectMapper().readValue(tokenDecoded.getClaims(), Map.class);
-                verifyClaims(authInfo);
-                user =  new OpenIdConnectUserDetails(authInfo, authentication.getCredentials());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
 
-            Mono<OpenIdConnectUserDetails> userDtoMono = user == null ?
-                    fetchUserDto() : Mono.just(user);
+
 
             return userDtoMono
 //                .doOnNext(PrincipalImpl::eraseCredentials)
@@ -136,15 +121,15 @@ public class GatewaySecurityConfiguration {
     }*/
 
 
-
     private ServerAuthenticationConverter tokenAuthenticationConverter() {
         return serverWebExchange -> {
             String authorization = serverWebExchange.getRequest()
                 .getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            if (authorization == null || !authorization.startsWith("Bearer ")){
+            if (authorization == null || !authorization.startsWith("Bearer ")) {
                 return buildInAuthenticationConverter().convert(serverWebExchange);
             }
-            return Mono.just(new UsernamePasswordAuthenticationToken(null, authorization.substring("Bearer ".length())));
+            OAuth2LoginAuthenticationToken authentication = jwtService.parseToken(authorization.substring("Bearer ".length()));
+            return Mono.just(authentication);
         };
     }
 
