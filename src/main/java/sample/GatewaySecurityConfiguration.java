@@ -10,7 +10,6 @@ import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
@@ -19,6 +18,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryReactiveC
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationCodeAuthenticationTokenConverter;
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -50,7 +50,7 @@ public class GatewaySecurityConfiguration {
     private String jwkUrl;
 
     @Autowired
-    private JWTService jwtService;
+    private JWTServiceGoogle jwtService;
 
     public ClientRegistration clientRegistration() {
         return ClientRegistration
@@ -83,7 +83,7 @@ public class GatewaySecurityConfiguration {
             .oauth2Login()
                 .authenticationConverter(tokenAuthenticationConverter())
                 .clientRegistrationRepository(registrationRepository())
-                .authorizedClientService(buildInAuthorizedClientService())
+                .authorizedClientService(clientService())
                 .authenticationManager(reactiveAuthenticationManager())
             .and()
             .addFilterAt(tokenAuthFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
@@ -92,14 +92,8 @@ public class GatewaySecurityConfiguration {
             .build();
     }
 
-    @Bean
-    public ReactiveOAuth2AuthorizedClientService buildInAuthorizedClientService() {
-        return new InMemoryReactiveOAuth2AuthorizedClientService(
-            new InMemoryReactiveClientRegistrationRepository(clientRegistration()));
-    }
 
-
-    @Bean
+//    @Bean
     public ReactiveAuthenticationManager buildInReactiveAuthenticationManager() {
         return new OidcAuthorizationCodeReactiveAuthenticationManager(
             new WebClientReactiveAuthorizationCodeTokenResponseClient(),
@@ -126,7 +120,7 @@ public class GatewaySecurityConfiguration {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
                 return buildInAuthenticationConverter().convert(serverWebExchange);
             }
-            return jwtService.parseToken(authorization.substring("Bearer ".length()));
+            return jwtService.retrieveAuthenticationFromToken(authorization.substring("Bearer ".length()));
         };
     }
 
@@ -137,10 +131,18 @@ public class GatewaySecurityConfiguration {
         return authenticationConverter;
     }
 
+    @Bean
+    public ReactiveOAuth2AuthorizedClientService clientService(){
+        return new InMemoryReactiveOAuth2AuthorizedClientService(registrationRepository());
+    }
+
+    @Bean
+    public ServerOAuth2AuthorizedClientRepository clientRepository(){
+        return new AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository(clientService());
+    }
+
     private Oauth2LoginFromTokenWebFilter tokenAuthFilter(){
-        return new Oauth2LoginFromTokenWebFilter(reactiveAuthenticationManager(), jwtService);
-        /*return new Oauth2LoginFromTokenWebFilter(reactiveAuthenticationManager(),
-            new AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository(buildInAuthorizedClientService()));*/
+        return new Oauth2LoginFromTokenWebFilter(jwtService, clientRepository());
     }
 
 }
