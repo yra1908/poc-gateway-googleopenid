@@ -16,7 +16,7 @@ provider:
   accessTokenUri: https://oauth2.googleapis.com/token
   userAuthorizationUri: https://accounts.google.com/o/oauth2/auth
   redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
-  issuer: accounts.google.com
+  issuer: https://accounts.google.com
   jwkUrl: https://www.googleapis.com/oauth2/v2/certs
 
 spring:

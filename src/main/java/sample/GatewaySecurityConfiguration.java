@@ -10,6 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
@@ -18,6 +19,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationCodeAuthenticationTokenConverter;
+import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -50,7 +52,6 @@ public class GatewaySecurityConfiguration {
     @Autowired
     private JWTService jwtService;
 
-    @Bean
     public ClientRegistration clientRegistration() {
         return ClientRegistration
             .withRegistrationId("login-client")
@@ -80,24 +81,24 @@ public class GatewaySecurityConfiguration {
             .anyExchange().authenticated()
             .and()
             .oauth2Login()
-            .authenticationConverter(tokenAuthenticationConverter())
-            .clientRegistrationRepository(registrationRepository())
-            .authorizedClientService(buildInAuthorizedClientService())
-            .authenticationManager(buildInReactiveAuthenticationManager())
+                .authenticationConverter(tokenAuthenticationConverter())
+                .clientRegistrationRepository(registrationRepository())
+                .authorizedClientService(buildInAuthorizedClientService())
+                .authenticationManager(reactiveAuthenticationManager())
             .and()
             .exceptionHandling()
             .and()
             .build();
     }
 
-//    @Bean
+    @Bean
     public ReactiveOAuth2AuthorizedClientService buildInAuthorizedClientService() {
         return new InMemoryReactiveOAuth2AuthorizedClientService(
             new InMemoryReactiveClientRegistrationRepository(clientRegistration()));
     }
 
 
-//    @Bean
+    @Bean
     public ReactiveAuthenticationManager buildInReactiveAuthenticationManager() {
         return new OidcAuthorizationCodeReactiveAuthenticationManager(
             new WebClientReactiveAuthorizationCodeTokenResponseClient(),
@@ -105,20 +106,16 @@ public class GatewaySecurityConfiguration {
         );
     }
 
-    /*@Bean
+//    @Bean
     public ReactiveAuthenticationManager reactiveAuthenticationManager() {
         return authentication -> {
-
-
-
-            return userDtoMono
-//                .doOnNext(PrincipalImpl::eraseCredentials)
-                    .map(principal -> new OAuth2AuthenticationToken(
-                            new DefaultOAuth2User(principal.getAuthorities(), principal.getUserInfo(), "sub"),
-                            principal.getAuthorities(),
-                            "login-client"));
+            boolean stub = true;
+            if (stub) {
+                return buildInReactiveAuthenticationManager().authenticate(authentication);
+            }
+            return Mono.just(authentication);
         };
-    }*/
+    }
 
 
     private ServerAuthenticationConverter tokenAuthenticationConverter() {
@@ -136,7 +133,7 @@ public class GatewaySecurityConfiguration {
     private ServerAuthenticationConverter buildInAuthenticationConverter() {
         ServerOAuth2AuthorizationCodeAuthenticationTokenConverter authenticationConverter =
             new ServerOAuth2AuthorizationCodeAuthenticationTokenConverter(registrationRepository());
-        authenticationConverter.setAuthorizationRequestRepository(new CustomWebSessionOAuth2ServerAuthorizationRequestRepository());
+        authenticationConverter.setAuthorizationRequestRepository(new WebSessionOAuth2ServerAuthorizationRequestRepository());
         return authenticationConverter;
     }
 

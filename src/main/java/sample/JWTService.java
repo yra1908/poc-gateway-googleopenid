@@ -11,10 +11,16 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.jwt.Jwt;
 import org.springframework.security.jwt.JwtHelper;
 import org.springframework.security.jwt.crypto.sign.RsaVerifier;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.AbstractOAuth2Token;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponse;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
@@ -37,14 +43,40 @@ public class JWTService {
     @Value("${provider.clientId}")
     private String clientId;
 
+    @Value("${provider.clientSecret}")
+    private String clientSecret;
+
+    @Value("${provider.accessTokenUri}")
+    private String accessTokenUri;
+
+    @Value("${provider.userAuthorizationUri}")
+    private String userAuthorizationUri;
+
+    @Value("${provider.redirectUri}")
+    private String redirectUri;
+
     @Value("${provider.issuer}")
     private String issuer;
 
     @Value("${provider.jwkUrl}")
     private String jwkUrl;
 
-    @Autowired
-    public ClientRegistration clientRegistration;
+
+
+    public ClientRegistration clientRegistration() {
+        return ClientRegistration
+            .withRegistrationId("login-client")
+            .clientId(clientId)
+            .clientSecret(clientSecret)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
+            .redirectUriTemplate(redirectUri)
+            .scope(Arrays.asList("openid", "profile"))
+            .authorizationUri(userAuthorizationUri)
+            .tokenUri(accessTokenUri)
+            .jwkSetUri(jwkUrl)
+            .build();
+    }
 
     public OAuth2LoginAuthenticationToken parseToken (String idToken){
         try {
@@ -53,12 +85,25 @@ public class JWTService {
             Map<String, Object> authInfo = new ObjectMapper().readValue(tokenDecoded.getClaims(), Map.class);
             Instant at = Instant.ofEpochSecond((Integer) authInfo.get("iat"));
             Instant exp = Instant.ofEpochSecond((Integer) authInfo.get("exp"));
-            //verifyClaims(authInfo);
+            verifyClaims(authInfo);
             OidcIdToken token = new OidcIdToken(idToken, at, exp, authInfo);
             OAuth2User user =  new DefaultOidcUser(Collections.singletonList(new OidcUserAuthority(token)), token);
             Set<String> scopes = new HashSet<>(Arrays.asList("openid", "profile", "email"));
             OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, idToken,at, exp,  scopes);
-            return new OAuth2LoginAuthenticationToken(clientRegistration, null, user, user.getAuthorities(), accessToken, null);
+            OAuth2AuthorizationExchange exchangeStub = new OAuth2AuthorizationExchange(
+                OAuth2AuthorizationRequest.authorizationCode()
+                    .authorizationUri(userAuthorizationUri)
+                    .clientId(clientId)
+                    .redirectUri(redirectUri)
+                    .scope("openid", "email", "profile")
+                    .state("random")
+                    .build(),
+                OAuth2AuthorizationResponse.success("200")
+                    .redirectUri(redirectUri)
+                    .state("random")
+                    .build());
+            return new OAuth2LoginAuthenticationToken(clientRegistration(), exchangeStub, user, user.getAuthorities(), accessToken, null);
+//            return new OAuth2AuthorizationCodeAuthenticationToken(clientRegistration(), exchangeStub, accessToken);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
