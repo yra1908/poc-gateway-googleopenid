@@ -6,11 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
@@ -18,6 +17,7 @@ import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAut
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.server.AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationCodeAuthenticationTokenConverter;
 import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -86,6 +86,7 @@ public class GatewaySecurityConfiguration {
                 .authorizedClientService(buildInAuthorizedClientService())
                 .authenticationManager(reactiveAuthenticationManager())
             .and()
+            .addFilterAt(tokenAuthFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
             .exceptionHandling()
             .and()
             .build();
@@ -125,8 +126,7 @@ public class GatewaySecurityConfiguration {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
                 return buildInAuthenticationConverter().convert(serverWebExchange);
             }
-            OAuth2LoginAuthenticationToken authentication = jwtService.parseToken(authorization.substring("Bearer ".length()));
-            return Mono.just(authentication);
+            return jwtService.parseToken(authorization.substring("Bearer ".length()));
         };
     }
 
@@ -135,6 +135,12 @@ public class GatewaySecurityConfiguration {
             new ServerOAuth2AuthorizationCodeAuthenticationTokenConverter(registrationRepository());
         authenticationConverter.setAuthorizationRequestRepository(new WebSessionOAuth2ServerAuthorizationRequestRepository());
         return authenticationConverter;
+    }
+
+    private Oauth2LoginFromTokenWebFilter tokenAuthFilter(){
+        return new Oauth2LoginFromTokenWebFilter(reactiveAuthenticationManager(), jwtService);
+        /*return new Oauth2LoginFromTokenWebFilter(reactiveAuthenticationManager(),
+            new AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository(buildInAuthorizedClientService()));*/
     }
 
 }

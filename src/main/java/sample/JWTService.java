@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.jwt.Jwt;
 import org.springframework.security.jwt.JwtHelper;
@@ -26,6 +27,7 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.net.URL;
 import java.security.interfaces.RSAPublicKey;
@@ -78,7 +80,7 @@ public class JWTService {
             .build();
     }
 
-    public OAuth2LoginAuthenticationToken parseToken (String idToken){
+    public Mono<Authentication> parseToken (String idToken){
         try {
             String kid = JwtHelper.headers(idToken).get("kid");
             Jwt tokenDecoded = JwtHelper.decodeAndVerify(idToken, verifier(kid));
@@ -102,11 +104,11 @@ public class JWTService {
                     .redirectUri(redirectUri)
                     .state("random")
                     .build());
-            return new OAuth2LoginAuthenticationToken(clientRegistration(), exchangeStub, user, user.getAuthorities(), accessToken, null);
+            return Mono.just(new OAuth2LoginAuthenticationToken(clientRegistration(), exchangeStub, user, user.getAuthorities(), accessToken, null));
 //            return new OAuth2AuthorizationCodeAuthenticationToken(clientRegistration(), exchangeStub, accessToken);
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return Mono.empty();
         }
     }
 
