@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
+import org.springframework.security.authorization.AuthenticatedReactiveAuthorizationManager;
+import org.springframework.security.authorization.ReactiveAuthorizationManager;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.AuthenticationException;
@@ -33,6 +35,9 @@ import org.springframework.security.web.server.authentication.RedirectServerAuth
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler;
+import org.springframework.security.web.server.authorization.AuthorizationWebFilter;
+import org.springframework.security.web.server.authorization.ExceptionTranslationWebFilter;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
 import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.security.web.server.util.matcher.MediaTypeServerWebExchangeMatcher;
 import org.springframework.web.server.WebFilter;
@@ -85,22 +90,44 @@ public class GatewaySecurityConfiguration {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-            .authorizeExchange()
-            .anyExchange().authenticated()
-            .and()
+//            .authorizeExchange()
+//            .anyExchange().authenticated()
+//            .and()
+           // .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
+//            .and()
 //            .oauth2Login()
 //                .authenticationConverter(buildInAuthenticationConverter())
 //                .clientRegistrationRepository(registrationRepository())
 //                .authorizedClientService(clientService())
 //                .authenticationManager(buildInReactiveAuthenticationManager())
+
             .addFilterAt(oauthRedirectFilter(), SecurityWebFiltersOrder.HTTP_BASIC)
             .addFilterAt(tokenAuthenticationFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
             .addFilterAt(authenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
 
-            .exceptionHandling()
-                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
-            .and()
+            //no need to do this - it's the same as .authorizeExchange().anyExchange().authenticated()  .exceptionHandling().authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
+            .addFilterAt(authorizationFilter(), SecurityWebFiltersOrder.AUTHORIZATION)
+            .addFilterAt(exceptionTranslationWebFilter(), SecurityWebFiltersOrder.EXCEPTION_TRANSLATION)
+
+//            .exceptionHandling()
+//                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
+//            .and()
             .build();
+    }
+
+    private AuthorizationWebFilter authorizationFilter(){
+        return new AuthorizationWebFilter(AuthenticatedReactiveAuthorizationManager.authenticated());
+    }
+
+    private ExceptionTranslationWebFilter exceptionTranslationWebFilter(){
+        ExceptionTranslationWebFilter exceptionWebFilter = new ExceptionTranslationWebFilter();
+        exceptionWebFilter.setAuthenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"));
+//        exceptionWebFilter.setAccessDeniedHandler();
+        return exceptionWebFilter;
+    }
+
+    private ReactiveAuthorizationManager authorizationManager(){
+        return AuthenticatedReactiveAuthorizationManager.authenticated();
     }
 
     private OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter(){
@@ -108,6 +135,7 @@ public class GatewaySecurityConfiguration {
             new OAuth2AuthorizationRequestRedirectWebFilter(registrationRepository());
         return oauthRedirectFilter; //OauthDefault
     }
+
 
     private AuthenticationWebFilter authenticationFilter(){
         OauthAuthenticationWebFilter oauthAuthenticationFilter = new OauthAuthenticationWebFilter(buildInReactiveAuthenticationManager());
