@@ -98,6 +98,7 @@ public class GatewaySecurityConfiguration {
             .addFilterAt(authenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
 
             .exceptionHandling()
+                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
             .and()
             .build();
     }
@@ -112,7 +113,7 @@ public class GatewaySecurityConfiguration {
         OauthAuthenticationWebFilter oauthAuthenticationFilter = new OauthAuthenticationWebFilter(buildInReactiveAuthenticationManager());
         oauthAuthenticationFilter.setAuthenticationMatcher("/login/oauth2/code/{registrationId}");
         oauthAuthenticationFilter.setAuthorizedClientRepository(clientRepository());
-        oauthAuthenticationFilter.setAuthenticationConverter(buildInAuthenticationConverter());
+        oauthAuthenticationFilter.setServerAuthenticationConverter(buildInAuthenticationConverter());
         oauthAuthenticationFilter.setAuthenticationSuccessHandler(new RedirectServerAuthenticationSuccessHandler());
         oauthAuthenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationFailureHandler() {
             public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
@@ -136,35 +137,6 @@ public class GatewaySecurityConfiguration {
         authenticationConverter.setAuthorizationRequestRepository(new WebSessionOAuth2ServerAuthorizationRequestRepository());
         return authenticationConverter;
     }
-
-   /* protected void configure(ServerHttpSecurity http) {
-        ReactiveClientRegistrationRepository clientRegistrationRepository = this.getClientRegistrationRepository();
-        ServerOAuth2AuthorizedClientRepository authorizedClientRepository = this.getAuthorizedClientRepository();
-        OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter = new OAuth2AuthorizationRequestRedirectWebFilter(clientRegistrationRepository);
-        ReactiveAuthenticationManager manager = this.getAuthenticationManager();
-        AuthenticationWebFilter authenticationFilter = new OAuth2LoginAuthenticationWebFilter(manager, authorizedClientRepository);
-        authenticationFilter.setRequiresAuthenticationMatcher(this.createAttemptAuthenticationRequestMatcher());
-        authenticationFilter.setServerAuthenticationConverter(this.getAuthenticationConverter(clientRegistrationRepository));
-        RedirectServerAuthenticationSuccessHandler redirectHandler = new RedirectServerAuthenticationSuccessHandler();
-        authenticationFilter.setAuthenticationSuccessHandler(redirectHandler);
-        authenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationFailureHandler() {
-            public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
-                return Mono.error(exception);
-            }
-        });
-        authenticationFilter.setSecurityContextRepository(new WebSessionServerSecurityContextRepository());
-        MediaTypeServerWebExchangeMatcher htmlMatcher = new MediaTypeServerWebExchangeMatcher(new MediaType[]{MediaType.TEXT_HTML});
-        htmlMatcher.setIgnoredMediaTypes(Collections.singleton(MediaType.ALL));
-        Map<String, String> urlToText = http.oauth2Login.getLinks();
-        if (urlToText.size() == 1) {
-            http.defaultEntryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(htmlMatcher, new RedirectServerAuthenticationEntryPoint((String)urlToText.keySet().iterator().next())));
-        } else {
-            http.defaultEntryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(htmlMatcher, new RedirectServerAuthenticationEntryPoint("/login")));
-        }
-
-        http.addFilterAt(oauthRedirectFilter, SecurityWebFiltersOrder.HTTP_BASIC);
-        http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION);
-    }*/
 
     private Oauth2LoginFromTokenWebFilter tokenAuthenticationFilter() {
         return new Oauth2LoginFromTokenWebFilter(jwtService, clientRepository());

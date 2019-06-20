@@ -2,11 +2,15 @@ package sample;
 
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.context.SecurityContextImpl;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.security.web.server.authentication.HttpBasicServerAuthenticationEntryPoint;
@@ -28,17 +32,10 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 public class OauthAuthenticationWebFilter extends AuthenticationWebFilter {
-    private final ReactiveAuthenticationManager authenticationManager;
-    private ServerWebExchangeMatcher requiresAuthenticationMatcher;
     private ServerOAuth2AuthorizedClientRepository authorizedClientRepository;
-    private ServerAuthenticationConverter authenticationConverter;
-    private ServerAuthenticationSuccessHandler authenticationSuccessHandler;
-    private ServerAuthenticationFailureHandler authenticationFailureHandler;
-    private ServerSecurityContextRepository securityContextRepository;
 
     public OauthAuthenticationWebFilter(ReactiveAuthenticationManager authenticationManager) {
         super(authenticationManager);
-        this.authenticationManager = authenticationManager;
     }
 
     public void setAuthenticationMatcher(String pattern) {
@@ -48,43 +45,23 @@ public class OauthAuthenticationWebFilter extends AuthenticationWebFilter {
                 return ServerWebExchangeMatcher.MatchResult.notMatch();
             }).switchIfEmpty(ServerWebExchangeMatcher.MatchResult.match());
         };
-        this.requiresAuthenticationMatcher = new AndServerWebExchangeMatcher(new ServerWebExchangeMatcher[]{loginPathMatcher, notAuthenticatedMatcher});
+        setRequiresAuthenticationMatcher(new AndServerWebExchangeMatcher(new ServerWebExchangeMatcher[]{loginPathMatcher, notAuthenticatedMatcher}));
     }
 
     public void setAuthorizedClientRepository(ServerOAuth2AuthorizedClientRepository authorizedClientRepository) {
         this.authorizedClientRepository = authorizedClientRepository;
     }
 
-    public void setAuthenticationConverter(ServerAuthenticationConverter authenticationConverter) {
-        this.authenticationConverter = authenticationConverter;
-    }
-
-    @Override
-    public void setAuthenticationSuccessHandler(ServerAuthenticationSuccessHandler authenticationSuccessHandler) {
-        this.authenticationSuccessHandler = authenticationSuccessHandler;
-    }
-
-    @Override
-    public void setAuthenticationFailureHandler(ServerAuthenticationFailureHandler authenticationFailureHandler) {
-        this.authenticationFailureHandler = authenticationFailureHandler;
-    }
-
-    @Override
-    public void setSecurityContextRepository(ServerSecurityContextRepository securityContextRepository) {
-        this.securityContextRepository = securityContextRepository;
-    }
-
-
-    @Override
-    public Mono<Void> filter(ServerWebExchange serverWebExchange, WebFilterChain webFilterChain) {
-        return super.filter(serverWebExchange, webFilterChain);
-    }
-
     protected Mono<Void> onAuthenticationSuccess(Authentication authentication, WebFilterExchange webFilterExchange) {
         OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken)authentication;
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());
-        return this.authorizedClientRepository.saveAuthorizedClient(authorizedClient, authenticationResult, webFilterExchange.getExchange()).then(super.onAuthenticationSuccess(result, webFilterExchange));
+        return authorizedClientRepository.saveAuthorizedClient(authorizedClient, authenticationResult, webFilterExchange.getExchange())
+            .then(super.onAuthenticationSuccess(result, webFilterExchange));
+    }
+
+    private Mono<Void> onAuthenticationFailure() {
+        return Mono.error(new OAuth2AuthenticationException(new OAuth2Error("401")));
     }
 
 }
