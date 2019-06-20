@@ -4,20 +4,43 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.client.InMemoryReactiveOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.AuthenticatedPrincipalServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.server.OAuth2AuthorizationRequestRedirectWebFilter;
+import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationCodeAuthenticationTokenConverter;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
+import org.springframework.security.oauth2.client.web.server.authentication.OAuth2LoginAuthenticationWebFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.web.server.DelegatingServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
+import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler;
+import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
+import org.springframework.security.web.server.util.matcher.MediaTypeServerWebExchangeMatcher;
+import org.springframework.web.server.WebFilter;
+import reactor.core.publisher.Mono;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 
 @Configuration
 public class GatewaySecurityConfiguration {
@@ -65,19 +88,85 @@ public class GatewaySecurityConfiguration {
             .authorizeExchange()
             .anyExchange().authenticated()
             .and()
-            .oauth2Login()
+//            .oauth2Login()
 //                .authenticationConverter(buildInAuthenticationConverter())
 //                .clientRegistrationRepository(registrationRepository())
 //                .authorizedClientService(clientService())
 //                .authenticationManager(buildInReactiveAuthenticationManager())
-            .and()
-            .addFilterAt(tokenAuthFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
+            .addFilterAt(oauthRedirectFilter(), SecurityWebFiltersOrder.HTTP_BASIC)
+            .addFilterAt(tokenAuthenticationFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
+            .addFilterAt(authenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+
             .exceptionHandling()
             .and()
             .build();
     }
 
-    private Oauth2LoginFromTokenWebFilter tokenAuthFilter() {
+    private OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter(){
+        OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter =
+            new OAuth2AuthorizationRequestRedirectWebFilter(registrationRepository());
+        return oauthRedirectFilter; //OauthDefault
+    }
+
+    private AuthenticationWebFilter authenticationFilter(){
+        OauthAuthenticationWebFilter oauthAuthenticationFilter = new OauthAuthenticationWebFilter(buildInReactiveAuthenticationManager());
+        oauthAuthenticationFilter.setAuthenticationMatcher("/login/oauth2/code/{registrationId}");
+        oauthAuthenticationFilter.setAuthorizedClientRepository(clientRepository());
+        oauthAuthenticationFilter.setAuthenticationConverter(buildInAuthenticationConverter());
+        oauthAuthenticationFilter.setAuthenticationSuccessHandler(new RedirectServerAuthenticationSuccessHandler());
+        oauthAuthenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationFailureHandler() {
+            public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
+                return Mono.error(exception);
+            }
+        });
+        oauthAuthenticationFilter.setSecurityContextRepository(new WebSessionServerSecurityContextRepository());
+        return oauthAuthenticationFilter;
+    }
+
+    public ReactiveAuthenticationManager buildInReactiveAuthenticationManager() {
+        return new OidcAuthorizationCodeReactiveAuthenticationManager(
+            new WebClientReactiveAuthorizationCodeTokenResponseClient(),
+            new OidcReactiveOAuth2UserService()
+        );
+    }
+
+    private ServerAuthenticationConverter buildInAuthenticationConverter() {
+        ServerOAuth2AuthorizationCodeAuthenticationTokenConverter authenticationConverter =
+            new ServerOAuth2AuthorizationCodeAuthenticationTokenConverter(registrationRepository());
+        authenticationConverter.setAuthorizationRequestRepository(new WebSessionOAuth2ServerAuthorizationRequestRepository());
+        return authenticationConverter;
+    }
+
+   /* protected void configure(ServerHttpSecurity http) {
+        ReactiveClientRegistrationRepository clientRegistrationRepository = this.getClientRegistrationRepository();
+        ServerOAuth2AuthorizedClientRepository authorizedClientRepository = this.getAuthorizedClientRepository();
+        OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter = new OAuth2AuthorizationRequestRedirectWebFilter(clientRegistrationRepository);
+        ReactiveAuthenticationManager manager = this.getAuthenticationManager();
+        AuthenticationWebFilter authenticationFilter = new OAuth2LoginAuthenticationWebFilter(manager, authorizedClientRepository);
+        authenticationFilter.setRequiresAuthenticationMatcher(this.createAttemptAuthenticationRequestMatcher());
+        authenticationFilter.setServerAuthenticationConverter(this.getAuthenticationConverter(clientRegistrationRepository));
+        RedirectServerAuthenticationSuccessHandler redirectHandler = new RedirectServerAuthenticationSuccessHandler();
+        authenticationFilter.setAuthenticationSuccessHandler(redirectHandler);
+        authenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationFailureHandler() {
+            public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
+                return Mono.error(exception);
+            }
+        });
+        authenticationFilter.setSecurityContextRepository(new WebSessionServerSecurityContextRepository());
+        MediaTypeServerWebExchangeMatcher htmlMatcher = new MediaTypeServerWebExchangeMatcher(new MediaType[]{MediaType.TEXT_HTML});
+        htmlMatcher.setIgnoredMediaTypes(Collections.singleton(MediaType.ALL));
+        Map<String, String> urlToText = http.oauth2Login.getLinks();
+        if (urlToText.size() == 1) {
+            http.defaultEntryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(htmlMatcher, new RedirectServerAuthenticationEntryPoint((String)urlToText.keySet().iterator().next())));
+        } else {
+            http.defaultEntryPoints.add(new DelegatingServerAuthenticationEntryPoint.DelegateEntry(htmlMatcher, new RedirectServerAuthenticationEntryPoint("/login")));
+        }
+
+        http.addFilterAt(oauthRedirectFilter, SecurityWebFiltersOrder.HTTP_BASIC);
+        http.addFilterAt(authenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION);
+    }*/
+
+    private Oauth2LoginFromTokenWebFilter tokenAuthenticationFilter() {
         return new Oauth2LoginFromTokenWebFilter(jwtService, clientRepository());
     }
 
