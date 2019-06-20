@@ -57,8 +57,9 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
     private Mono<Void> authenticate(ServerWebExchange exchange, WebFilterChain chain) {
         WebFilterExchange webFilterExchange = new WebFilterExchange(exchange, chain);
         String authorization = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        String token = authorization.substring("Bearer ".length());
-        return this.jwtService.retrieveAuthenticationFromToken(token)
+        String idToken = authorization.substring("Bearer ".length());
+        exchange.getResponse().getHeaders().add("x-auth-token", idToken);
+        return this.jwtService.retrieveAuthenticationFromToken(idToken)
             .switchIfEmpty(Mono.defer(() -> {
                 return Mono.error(new IllegalStateException("Error extracting Authentication from token. Token Not valid"));
             }))
