@@ -26,34 +26,33 @@ public class CustomOauthRequestResolver implements ServerOAuth2AuthorizationRequ
     public static final String DEFAULT_AUTHORIZATION_REQUEST_PATTERN = "/oauth2/authorization/{registrationId}";
     private final StringKeyGenerator stateGenerator= new Base64StringKeyGenerator(Base64.getUrlEncoder());;
     private final ServerWebExchangeMatcher authorizationRequestMatcher =  new PathPatternParserServerWebExchangeMatcher(DEFAULT_AUTHORIZATION_REQUEST_PATTERN);
-    private final ReactiveClientRegistrationRepository clientRegistrationRepository;
+    private final ClientRegistration clientRegistration;
 
-    public CustomOauthRequestResolver(ReactiveClientRegistrationRepository clientRegistrationRepository) {
-        this.clientRegistrationRepository = clientRegistrationRepository;
+    public CustomOauthRequestResolver(ClientRegistration clientRegistration) {
+        this.clientRegistration = clientRegistration;
     }
 
     @Override
     public Mono<OAuth2AuthorizationRequest> resolve(ServerWebExchange exchange) {
-        return this.authorizationRequestMatcher.matches(exchange).filter((matchResult) -> {
+        return this.authorizationRequestMatcher.matches(exchange)
+            .filter((matchResult) -> {return matchResult.isMatch();})
+            .flatMap((webExchange) -> { return this.resolve(exchange, clientRegistration.getRegistrationId());
+        });
+
+
+        /*return this.authorizationRequestMatcher.matches(exchange).filter((matchResult) -> {
             return matchResult.isMatch();
         }).map(ServerWebExchangeMatcher.MatchResult::getVariables).map((variables) -> {
             return variables.get("registrationId");
         }).cast(String.class).flatMap((clientRegistrationId) -> {
             return this.resolve(exchange, clientRegistrationId);
-        });
+        });*/
     }
 
     @Override
     public Mono<OAuth2AuthorizationRequest> resolve(ServerWebExchange exchange, String clientRegistrationId) {
-        return this.findByRegistrationId(exchange, clientRegistrationId).map((clientRegistration) -> {
-            return this.authorizationRequest(exchange, clientRegistration);
-        });
-    }
+        return Mono.just(this.authorizationRequest(exchange, clientRegistration));
 
-    private Mono<ClientRegistration> findByRegistrationId(ServerWebExchange exchange, String clientRegistration) {
-        return this.clientRegistrationRepository.findByRegistrationId(clientRegistration).switchIfEmpty(Mono.error(() -> {
-            return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid client registration id");
-        }));
     }
 
     private OAuth2AuthorizationRequest authorizationRequest(ServerWebExchange exchange, ClientRegistration clientRegistration) {

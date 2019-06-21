@@ -90,9 +90,9 @@ public class GatewaySecurityConfiguration {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-//            .authorizeExchange()
-//            .anyExchange().authenticated()
-//            .and()
+            .authorizeExchange()
+            .anyExchange().authenticated()
+            .and()
            // .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
 //            .and()
 //            .oauth2Login()
@@ -106,12 +106,12 @@ public class GatewaySecurityConfiguration {
             .addFilterAt(authenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
 
             //no need to do this - it's the same as .authorizeExchange().anyExchange().authenticated()  .exceptionHandling().authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
-            .addFilterAt(authorizationFilter(), SecurityWebFiltersOrder.AUTHORIZATION)
-            .addFilterAt(exceptionTranslationWebFilter(), SecurityWebFiltersOrder.EXCEPTION_TRANSLATION)
+//            .addFilterAt(authorizationFilter(), SecurityWebFiltersOrder.AUTHORIZATION)
+//            .addFilterAt(exceptionTranslationWebFilter(), SecurityWebFiltersOrder.EXCEPTION_TRANSLATION)
 
-//            .exceptionHandling()
-//                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
-//            .and()
+            .exceptionHandling()
+                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
+            .and()
             .build();
     }
 
@@ -131,11 +131,9 @@ public class GatewaySecurityConfiguration {
     }
 
     private WebFilter oauthRedirectFilter(){
-        OAuthRedirectWebFilter oauthRedirectFilter =
-            new OAuthRedirectWebFilter(registrationRepository());
-        return oauthRedirectFilter; //OauthDefault
+        OAuthRedirectWebFilter oauthRedirectFilter = new OAuthRedirectWebFilter(clientRegistration());
+        return oauthRedirectFilter;
     }
-
 
     private AuthenticationWebFilter authenticationFilter(){
         OauthAuthenticationWebFilter oauthAuthenticationFilter = new OauthAuthenticationWebFilter(buildInReactiveAuthenticationManager());

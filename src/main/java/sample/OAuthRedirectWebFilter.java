@@ -1,6 +1,7 @@
 package sample;
 
 import org.springframework.security.oauth2.client.ClientAuthorizationRequiredException;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.server.ServerAuthorizationRequestRepository;
@@ -23,8 +24,8 @@ public class OAuthRedirectWebFilter implements WebFilter {
     private final ServerOAuth2AuthorizationRequestResolver authorizationRequestResolver;
     private ServerAuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository = new WebSessionOAuth2ServerAuthorizationRequestRepository();
 
-    public OAuthRedirectWebFilter(ReactiveClientRegistrationRepository registrationRepository) {
-        this.authorizationRequestResolver = new CustomOauthRequestResolver(registrationRepository);
+    public OAuthRedirectWebFilter(ClientRegistration clientRegistration) {
+        this.authorizationRequestResolver = new CustomOauthRequestResolver(clientRegistration);
     }
 
     @Override
