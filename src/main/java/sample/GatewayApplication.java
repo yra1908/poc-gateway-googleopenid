@@ -20,7 +20,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
-import org.springframework.cloud.security.oauth2.gateway.TokenRelayGatewayFilterFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -34,9 +33,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 @SpringBootApplication
 public class GatewayApplication {
 
-	@Autowired
-	private TokenRelayGatewayFilterFactory filterFactory;
+	//this is statefull shit
+//	@Autowired
+//	private TokenRelayGatewayFilterFactory filterFactory;
 
+	//this is stateless shit
 	@Autowired
 	private GatewayFilterFactory myFilter;
 
@@ -44,11 +45,13 @@ public class GatewayApplication {
 	public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
 		return builder.routes()
 				.route("resource", r -> r.path("/resource")
-						.filters(f -> f.filter(filterFactory.apply()).filter(myFilter.apply(new GatewayFilterFactory.Config())))
+						.filters(f -> f.filter(myFilter.apply(new GatewayFilterFactory.Config())))
+//						.filters(f -> f.filter(filterFactory.apply()).filter(myFilter.apply(new GatewayFilterFactory.Config())))
 						.uri("http://localhost:9000"))
 				.build();
 	}
 
+	//not work when stateless app config
 	@GetMapping("/")
 	public String index(Model model,
 						@RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient authorizedClient,
@@ -60,7 +63,9 @@ public class GatewayApplication {
 	}
 
     @GetMapping("/path")
-    public String indexx() {
+    public String indexx(Model model) {
+		model.addAttribute("userName", "Stateless");
+		model.addAttribute("clientName", "Stateless");
         return "index";
     }
 

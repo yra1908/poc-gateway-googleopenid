@@ -10,7 +10,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuth
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
-import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.web.server.WebFilterExchange;
@@ -23,16 +23,16 @@ import reactor.core.publisher.Mono;
 public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
     private ServerWebExchangeMatcher requiresAuthenticationMatcher = new HasAuthorizationHeaderMatcher();
     private JWTServiceGoogle jwtService;
-    private ServerOAuth2AuthorizedClientRepository requestRepository;
+    private ClientRegistration clientRegistration;
 
     public Oauth2LoginFromTokenWebFilter(ReactiveAuthenticationManager authenticationManager, JWTServiceGoogle jwtService) {
         super(authenticationManager);
         this.jwtService = jwtService;
     }
 
-    public Oauth2LoginFromTokenWebFilter(JWTServiceGoogle jwtService, ServerOAuth2AuthorizedClientRepository requestRepository) {
+    public Oauth2LoginFromTokenWebFilter(JWTServiceGoogle jwtService, ClientRegistration clientRegistration) {
         this(getAuthManagerStub(), jwtService);
-        this.requestRepository = requestRepository;
+        this.clientRegistration = clientRegistration;
     }
 
     private static ReactiveAuthenticationManager getAuthManagerStub() {
@@ -75,10 +75,11 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
         return Mono.error(new OAuth2AuthenticationException(new OAuth2Error("401")));
     }
 
+    @Override
     protected Mono<Void> onAuthenticationSuccess(Authentication authentication, WebFilterExchange webFilterExchange) {
         OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken) authentication;
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());
-        return this.requestRepository.saveAuthorizedClient(authorizedClient, authenticationResult, webFilterExchange.getExchange()).then(super.onAuthenticationSuccess(result, webFilterExchange));
+        return super.onAuthenticationSuccess(result, webFilterExchange);
     }
 }
