@@ -15,9 +15,14 @@ provider:
   clientSecret: zagh_7IO13dNJwNVir24iL3D
   accessTokenUri: https://oauth2.googleapis.com/token
   userAuthorizationUri: https://accounts.google.com/o/oauth2/auth
-  redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
   issuer: https://accounts.google.com
   jwkUrl: https://www.googleapis.com/oauth2/v2/certs
+  scope: "openid,email,profile"
+client:
+  registrationId: login-client
+  authorizationUri: "/oauth2/authorization/login-client"
+  redirectUri: "/login/oauth2/code/login-client"
+  redirectUriTemplate: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 spring:
   autoconfigure:

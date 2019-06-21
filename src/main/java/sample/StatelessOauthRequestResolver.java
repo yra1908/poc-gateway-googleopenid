@@ -21,7 +21,7 @@ import java.util.Map;
 public class StatelessOauthRequestResolver implements ServerOAuth2AuthorizationRequestResolver {
     public static final String DEFAULT_REGISTRATION_ID_URI_VARIABLE_NAME = "registrationId";
     public static final String DEFAULT_AUTHORIZATION_REQUEST_PATTERN = "/oauth2/authorization/{registrationId}";
-    private final StringKeyGenerator stateGenerator= new Base64StringKeyGenerator(Base64.getUrlEncoder());;
+    private final StringKeyGenerator stateGenerator= new Base64StringKeyGenerator(Base64.getUrlEncoder());
     private final ServerWebExchangeMatcher authorizationRequestMatcher =  new PathPatternParserServerWebExchangeMatcher(DEFAULT_AUTHORIZATION_REQUEST_PATTERN);
     private final ClientRegistration clientRegistration;
 

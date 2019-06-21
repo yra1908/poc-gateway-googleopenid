@@ -15,6 +15,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
 import org.springframework.web.server.WebFilter;
+import org.thymeleaf.util.StringUtils;
 
 import java.util.Arrays;
 
@@ -33,11 +34,23 @@ public class GatewaySecurityConfiguration {
     @Value("${provider.userAuthorizationUri}")
     private String userAuthorizationUri;
 
-    @Value("${provider.redirectUri}")
-    private String redirectUri;
+    @Value("${provider.scope}")
+    private String scope;
 
     @Value("${provider.jwkUrl}")
     private String jwkUrl;
+
+    @Value("${client.registrationId}")
+    private String registrationId;
+
+    @Value("${client.redirectUriTemplate}")
+    private String redirectUriTemplate;
+
+    @Value("${client.redirectUri}")
+    private String redirectUri;
+
+    @Value("${client.authorizationUri}")
+    private String authorizationUri;
 
     @Autowired
     private JWTServiceGoogle jwtService;
@@ -45,13 +58,13 @@ public class GatewaySecurityConfiguration {
     @Bean
     public ClientRegistration clientRegistration() {
         return ClientRegistration
-            .withRegistrationId("login-client")
+            .withRegistrationId(registrationId)
             .clientId(clientId)
             .clientSecret(clientSecret)
             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
-            .redirectUriTemplate(redirectUri)
-            .scope(Arrays.asList("openid", "profile"))
+            .redirectUriTemplate(redirectUriTemplate)
+            .scope(StringUtils.split(scope, ","))
             .authorizationUri(userAuthorizationUri)
             .tokenUri(accessTokenUri)
             .jwkSetUri(jwkUrl)
@@ -76,7 +89,7 @@ public class GatewaySecurityConfiguration {
             .addFilterAt(tokenAuthenticationWebFilter(), SecurityWebFiltersOrder.FORM_LOGIN)
             .addFilterAt(authenticationWebFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling()
-                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client"))
+                .authenticationEntryPoint(new RedirectServerAuthenticationEntryPoint(authorizationUri))
             .and()
             .build();
     }
@@ -88,7 +101,7 @@ public class GatewaySecurityConfiguration {
 
     private AuthenticationWebFilter authenticationWebFilter(){
         OauthAuthenticationWebFilter oauthAuthenticationWebFilter = new OauthAuthenticationWebFilter();
-        oauthAuthenticationWebFilter.setAuthenticationMatcher("/login/oauth2/code/{registrationId}");
+        oauthAuthenticationWebFilter.setAuthenticationMatcher(redirectUri);
         oauthAuthenticationWebFilter.setServerAuthenticationConverter(new StatelessServerAuthenticationConverter(clientRegistration()));
         return oauthAuthenticationWebFilter;
     }

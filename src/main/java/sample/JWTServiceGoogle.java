@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
+import org.springframework.security.crypto.keygen.StringKeyGenerator;
 import org.springframework.security.jwt.Jwt;
 import org.springframework.security.jwt.JwtHelper;
 import org.springframework.security.jwt.crypto.sign.RsaVerifier;
@@ -21,12 +23,14 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Mono;
 
 import java.net.URL;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
@@ -48,14 +52,19 @@ public class JWTServiceGoogle implements JWTService {
     @Value("${provider.userAuthorizationUri}")
     private String userAuthorizationUri;
 
-    @Value("${provider.redirectUri}")
-    private String redirectUri;
+    @Value("${provider.scope}")
+    private String scope;
 
     @Value("${provider.issuer}")
     private String issuer;
 
     @Value("${provider.jwkUrl}")
     private String jwkUrl;
+
+    @Value("${client.redirectUri}")
+    private String redirectUri;
+
+    private final StringKeyGenerator stateGenerator= new Base64StringKeyGenerator(Base64.getUrlEncoder());
 
     @Autowired
     public ClientRegistration clientRegistration;
@@ -70,19 +79,20 @@ public class JWTServiceGoogle implements JWTService {
             verifyClaims(authInfo);
             OidcIdToken token = new OidcIdToken(idToken, at, exp, authInfo);
             OAuth2User user = new DefaultOidcUser(Collections.singletonList(new OidcUserAuthority(token)), token);
-            Set<String> scopes = new HashSet<>(Arrays.asList("openid", "profile", "email"));
+            Set<String> scopes = new HashSet<String>(Arrays.asList(StringUtils.split(scope,",")));
             OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, idToken, at, exp, scopes);
+            String state = stateGenerator.generateKey();
             OAuth2AuthorizationExchange exchangeStub = new OAuth2AuthorizationExchange(
                 OAuth2AuthorizationRequest.authorizationCode()
                     .authorizationUri(userAuthorizationUri)
                     .clientId(clientId)
                     .redirectUri(redirectUri)
-                    .scope("openid", "email", "profile")
-                    .state("random")
+                    .scope(StringUtils.split(scope,","))
+                    .state(state)
                     .build(),
                 OAuth2AuthorizationResponse.success("200")
                     .redirectUri(redirectUri)
-                    .state("random")
+                    .state(state)
                     .build());
             return Mono.just(new OAuth2LoginAuthenticationToken(clientRegistration, exchangeStub, user, user.getAuthorities(), accessToken, null));
         } catch (Exception e) {
