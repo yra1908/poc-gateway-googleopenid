@@ -4,8 +4,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
+import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
@@ -83,6 +87,7 @@ public class GatewaySecurityConfiguration {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
             .authorizeExchange()
+                .pathMatchers("/ping").permitAll()
                 .anyExchange().authenticated()
             .and()
             .addFilterAt(oauthRedirectWebFilter(), SecurityWebFiltersOrder.HTTP_BASIC)
@@ -100,14 +105,21 @@ public class GatewaySecurityConfiguration {
     }
 
     private AuthenticationWebFilter authenticationWebFilter(){
-        OauthAuthenticationWebFilter oauthAuthenticationWebFilter = new OauthAuthenticationWebFilter();
+        OauthAuthenticationWebFilter oauthAuthenticationWebFilter = new OauthAuthenticationWebFilter(authenticationManager());
         oauthAuthenticationWebFilter.setAuthenticationMatcher(redirectUri);
         oauthAuthenticationWebFilter.setServerAuthenticationConverter(new StatelessServerAuthenticationConverter(clientRegistration()));
         return oauthAuthenticationWebFilter;
     }
 
     private Oauth2LoginFromTokenWebFilter tokenAuthenticationWebFilter() {
-        return new Oauth2LoginFromTokenWebFilter(jwtService, clientRegistration());
+        return new Oauth2LoginFromTokenWebFilter(authenticationManager(), jwtService, clientRegistration());
+    }
+
+    private ReactiveAuthenticationManager authenticationManager(){
+        return new OidcAuthorizationCodeReactiveAuthenticationManager(
+            new WebClientReactiveAuthorizationCodeTokenResponseClient(),
+            new OidcReactiveOAuth2UserService()
+        );
     }
 
 }

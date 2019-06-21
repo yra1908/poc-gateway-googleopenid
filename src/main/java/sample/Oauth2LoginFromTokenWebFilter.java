@@ -1,6 +1,8 @@
 package sample;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -13,8 +15,10 @@ import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAut
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilterChain;
@@ -22,42 +26,41 @@ import reactor.core.publisher.Mono;
 
 public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
     private ServerWebExchangeMatcher requiresAuthenticationMatcher = new HasAuthorizationHeaderMatcher();
+    private ServerAuthenticationEntryPoint redirectAuthenticationEntryPoint =
+        new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client");
     private JWTServiceGoogle jwtService;
     private ClientRegistration clientRegistration;
 
-    public Oauth2LoginFromTokenWebFilter(ReactiveAuthenticationManager authenticationManager, JWTServiceGoogle jwtService) {
+    public Oauth2LoginFromTokenWebFilter(ReactiveAuthenticationManager authenticationManager,
+                                         JWTServiceGoogle jwtService, ClientRegistration clientRegistration) {
         super(authenticationManager);
         this.jwtService = jwtService;
-    }
-
-    public Oauth2LoginFromTokenWebFilter(JWTServiceGoogle jwtService, ClientRegistration clientRegistration) {
-        this(getAuthManagerStub(), jwtService);
         this.clientRegistration = clientRegistration;
-    }
-
-    private static ReactiveAuthenticationManager getAuthManagerStub() {
-        return new OidcAuthorizationCodeReactiveAuthenticationManager(
-            new WebClientReactiveAuthorizationCodeTokenResponseClient(),
-            new OidcReactiveOAuth2UserService()
-        );
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         return this.requiresAuthenticationMatcher.matches(exchange)
-            .filter((matchResult) -> {
-                return matchResult.isMatch();
-            })
+            .filter((matchResult) -> {return matchResult.isMatch();})
             .switchIfEmpty(chain.filter(exchange).then(Mono.empty()))
-            .flatMap((bearerToken) -> {
-                return this.authenticate(exchange, chain);
+            .map(ServerWebExchangeMatcher.MatchResult::getVariables)
+            .map((variables) -> {
+                return variables.get("x-auth-token");
+            })
+            .cast(String.class)
+            .flatMap((idToken) -> {
+                return this.authenticate(exchange, chain, idToken);
             });
     }
 
-    private Mono<Void> authenticate(ServerWebExchange exchange, WebFilterChain chain) {
+    private Mono<Void> commenceAuthentication(ServerWebExchange exchange) {
+        return this.redirectAuthenticationEntryPoint
+            .commence(exchange, new AuthenticationCredentialsNotFoundException("Not Authenticated"))
+            .then(Mono.empty());
+    }
+
+    private Mono<Void> authenticate(ServerWebExchange exchange, WebFilterChain chain, String idToken) {
         WebFilterExchange webFilterExchange = new WebFilterExchange(exchange, chain);
-        String authorization = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        String idToken = authorization.substring("Bearer ".length());
         exchange.getResponse().getHeaders().add("x-auth-token", idToken);
         return this.jwtService.retrieveAuthenticationFromToken(idToken)
             .switchIfEmpty(Mono.defer(() -> {

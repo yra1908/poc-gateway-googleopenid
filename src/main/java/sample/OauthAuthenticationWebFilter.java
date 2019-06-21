@@ -25,13 +25,9 @@ public class OauthAuthenticationWebFilter extends AuthenticationWebFilter {
 
     public OauthAuthenticationWebFilter(ReactiveAuthenticationManager authenticationManager) {
         super(authenticationManager);
-    }
-
-    public OauthAuthenticationWebFilter() {
-        this(new OidcAuthorizationCodeReactiveAuthenticationManager(new WebClientReactiveAuthorizationCodeTokenResponseClient(),
-            new OidcReactiveOAuth2UserService()
-        ));
-        setAuthenticationSuccessHandler(new RedirectServerAuthenticationSuccessHandler());
+        RedirectServerAuthenticationSuccessHandler authenticationSuccessHandler = new RedirectServerAuthenticationSuccessHandler();
+        authenticationSuccessHandler.setRedirectStrategy(new CustomRedirectStrategy());
+        setAuthenticationSuccessHandler(authenticationSuccessHandler);
         setAuthenticationFailureHandler(new ServerAuthenticationFailureHandler() {
             public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
                 return Mono.error(exception);
@@ -48,7 +44,9 @@ public class OauthAuthenticationWebFilter extends AuthenticationWebFilter {
         ServerWebExchange exchange = webFilterExchange.getExchange();
         OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken)authentication;
         DefaultOidcUser principal = (DefaultOidcUser) authenticationResult.getPrincipal();
-        exchange.getResponse().getHeaders().add("Authorization", principal.getIdToken().getTokenValue());
+        String tokenValue = principal.getIdToken().getTokenValue();
+        //TODO:YC to think about another way to transfering idToken to To CustomRedirectStrategy
+        exchange.getResponse().getHeaders().add("x-auth-token", tokenValue);
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());
         return super.onAuthenticationSuccess(result, webFilterExchange);

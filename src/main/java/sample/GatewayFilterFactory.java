@@ -24,7 +24,7 @@ public class GatewayFilterFactory extends AbstractGatewayFilterFactory<GatewayFi
     private ServerWebExchange withBearerAuth(ServerWebExchange exchange) {
         return exchange.mutate().request((r) -> {
             r.headers((headers) -> {
-                headers.setBearerAuth(String.valueOf(exchange.getResponse().getHeaders().get("x-auth-token")));
+                headers.set("x-auth-token", String.valueOf(exchange.getResponse().getHeaders().get("x-auth-token")));
             });
         }).build();
     }

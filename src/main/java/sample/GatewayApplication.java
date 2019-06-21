@@ -28,6 +28,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.server.ServerWebExchange;
 
 @Controller
 @SpringBootApplication
@@ -68,6 +69,13 @@ public class GatewayApplication {
 		model.addAttribute("clientName", "Stateless");
         return "index";
     }
+
+	@GetMapping("/ping")
+	public String ping(ServerWebExchange exchange, Model model) {
+		model.addAttribute("userName", "ping");
+		model.addAttribute("clientName", "ping");
+		return "index";
+	}
 
 	public static void main(String[] args) {
 		SpringApplication.run(GatewayApplication.class, args);
