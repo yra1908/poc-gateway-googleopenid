@@ -59,6 +59,11 @@ public class GatewayApplication {
 		return "index";
 	}
 
+    @GetMapping("/path")
+    public String indexx() {
+        return "index";
+    }
+
 	public static void main(String[] args) {
 		SpringApplication.run(GatewayApplication.class, args);
 	}

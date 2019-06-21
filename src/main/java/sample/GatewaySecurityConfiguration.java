@@ -130,9 +130,9 @@ public class GatewaySecurityConfiguration {
         return AuthenticatedReactiveAuthorizationManager.authenticated();
     }
 
-    private OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter(){
-        OAuth2AuthorizationRequestRedirectWebFilter oauthRedirectFilter =
-            new OAuth2AuthorizationRequestRedirectWebFilter(registrationRepository());
+    private WebFilter oauthRedirectFilter(){
+        OAuthRedirectWebFilter oauthRedirectFilter =
+            new OAuthRedirectWebFilter(registrationRepository());
         return oauthRedirectFilter; //OauthDefault
     }
 
@@ -142,7 +142,9 @@ public class GatewaySecurityConfiguration {
         oauthAuthenticationFilter.setAuthenticationMatcher("/login/oauth2/code/{registrationId}");
         oauthAuthenticationFilter.setAuthorizedClientRepository(clientRepository());
         oauthAuthenticationFilter.setServerAuthenticationConverter(buildInAuthenticationConverter());
-        oauthAuthenticationFilter.setAuthenticationSuccessHandler(new RedirectServerAuthenticationSuccessHandler());
+        RedirectServerAuthenticationSuccessHandler authenticationSuccessHandler = new RedirectServerAuthenticationSuccessHandler();
+        authenticationSuccessHandler.setRedirectStrategy(new CustomRedirectStrategy());
+        oauthAuthenticationFilter.setAuthenticationSuccessHandler(authenticationSuccessHandler);
         oauthAuthenticationFilter.setAuthenticationFailureHandler(new ServerAuthenticationFailureHandler() {
             public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
                 return Mono.error(exception);
