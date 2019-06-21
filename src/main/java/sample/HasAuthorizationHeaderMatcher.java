@@ -11,8 +11,7 @@ import java.util.Map;
 public class HasAuthorizationHeaderMatcher implements ServerWebExchangeMatcher {
     @Override
     public Mono<MatchResult> matches(ServerWebExchange serverWebExchange) {
-        String authorization = serverWebExchange.getRequest()
-            .getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        String authorization = serverWebExchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             return MatchResult.notMatch();
         }

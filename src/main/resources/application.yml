@@ -17,34 +17,14 @@ provider:
   userAuthorizationUri: https://accounts.google.com/o/oauth2/auth
   issuer: https://accounts.google.com
   jwkUrl: https://www.googleapis.com/oauth2/v2/certs
-  scope: "openid,email,profile"
+  scope: openid,email,profile
 client:
   registrationId: login-client
-  authorizationUri: "/oauth2/authorization/login-client"
-  redirectUri: "/login/oauth2/code/login-client"
+  authorizationUri: /oauth2/authorization/login-client
+  redirectUri: /login/oauth2/code/login-client
   redirectUriTemplate: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 spring:
   autoconfigure:
-    # TODO: remove when fixed https://github.com/spring-projects/spring-security/issues/6314
-    exclude: org.springframework.boot.actuate.autoconfigure.security.reactive.ReactiveManagementWebSecurityAutoConfiguration
   thymeleaf:
     cache: false
-#  security:
-#    oauth2:
-#      client:
-#        registration:
-#          login-client:
-#            provider: customGoogle
-#            client-id: 601704593845-8nbsaqf58sk03plpd6cqd5snskc2v6du.apps.googleusercontent.com
-#            client-secret: zagh_7IO13dNJwNVir24iL3D
-#            authorization-grant-type: authorization_code
-#            redirect-uri-template: "{baseUrl}/login/oauth2/code/{registrationId}"
-#            scope: openid,email,profile
-#        provider:
-#          customGoogle:
-#            authorization-uri: https://accounts.google.com/o/oauth2/auth
-#            token-uri: https://oauth2.googleapis.com/token
-#            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-#            user-name-attribute: sub
-#            jwk-set-uri: https://www.googleapis.com/oauth2/v2/certs
