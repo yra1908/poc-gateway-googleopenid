@@ -27,6 +27,8 @@ public class CustomRedirectStrategy implements ServerRedirectStrategy {
             response.setStatusCode(this.httpStatus);
             response.getHeaders().setLocation(createLocation(exchange, location));
             String token = exchange.getResponse().getHeaders().getFirst("x-auth-token");
+            response.getHeaders().remove("x-auth-token");
+            response.getHeaders().add("blabla", "blaBlaBla");
             if (!StringUtils.isEmpty(token)) {
                 ResponseCookie tokenCookie = ResponseCookie
                     .from("x-auth-token", token)

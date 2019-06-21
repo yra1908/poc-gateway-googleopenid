@@ -1,7 +1,5 @@
 package sample;
 
-import org.springframework.http.HttpHeaders;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -9,9 +7,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken;
-import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
-import org.springframework.security.oauth2.client.oidc.authentication.OidcAuthorizationCodeReactiveAuthenticationManager;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcReactiveOAuth2UserService;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -25,7 +20,7 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
-    private ServerWebExchangeMatcher requiresAuthenticationMatcher = new HasAuthorizationHeaderMatcher();
+    private ServerWebExchangeMatcher requiresAuthenticationMatcher = new HasAuthorizationCookieMatcher();
     private ServerAuthenticationEntryPoint redirectAuthenticationEntryPoint =
         new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client");
     private JWTServiceGoogle jwtService;
