@@ -2,6 +2,7 @@ package sample;
 
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -16,15 +17,14 @@ public class GatewayFilterFactory extends AbstractGatewayFilterFactory<GatewayFi
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             System.out.println("************gateway filter name ");
-            ServerWebExchange exchangeMutated = this.withBearerAuth(exchange);
-            return chain.filter(exchangeMutated);
+            return chain.filter(this.withBearerAuth(exchange));
         };
     }
 
     private ServerWebExchange withBearerAuth(ServerWebExchange exchange) {
         return exchange.mutate().request((r) -> {
             r.headers((headers) -> {
-                headers.set("x-auth-token", String.valueOf(exchange.getResponse().getHeaders().get("x-auth-token")));
+                headers.setBearerAuth(String.valueOf(exchange.getResponse().getHeaders().getFirst(HttpHeaders.AUTHORIZATION)));
             });
         }).build();
     }

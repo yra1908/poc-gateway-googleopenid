@@ -20,7 +20,7 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
-    private ServerWebExchangeMatcher requiresAuthenticationMatcher = new HasAuthorizationCookieMatcher();
+    private ServerWebExchangeMatcher requiresAuthenticationMatcher = new HasAuthorizationMatcher();
     private ServerAuthenticationEntryPoint redirectAuthenticationEntryPoint =
         new RedirectServerAuthenticationEntryPoint("/oauth2/authorization/login-client");
     private JWTServiceGoogle jwtService;

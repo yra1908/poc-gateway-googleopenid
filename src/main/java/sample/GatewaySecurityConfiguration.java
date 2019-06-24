@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.authorization.AuthenticatedReactiveAuthorizationManager;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveAuthorizationCodeTokenResponseClient;
@@ -22,8 +21,6 @@ import org.springframework.security.web.server.authentication.RedirectServerAuth
 import org.springframework.security.web.server.util.matcher.NegatedServerWebExchangeMatcher;
 import org.springframework.web.server.WebFilter;
 import org.thymeleaf.util.StringUtils;
-
-import java.util.Arrays;
 
 @Configuration
 public class GatewaySecurityConfiguration {
@@ -90,7 +87,7 @@ public class GatewaySecurityConfiguration {
         return http
             .authorizeExchange()
                 .pathMatchers("/ping").permitAll()
-                .matchers(new NegatedServerWebExchangeMatcher(new HasAuthorizationCookieMatcher())).denyAll()
+                .matchers(new NegatedServerWebExchangeMatcher(new HasAuthorizationMatcher())).denyAll()
                 .anyExchange().authenticated()
             .and()
             .addFilterAt(oauthRedirectWebFilter(), SecurityWebFiltersOrder.HTTP_BASIC)

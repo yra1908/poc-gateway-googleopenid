@@ -10,6 +10,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
+import java.time.Duration;
 
 public class CustomRedirectStrategy implements ServerRedirectStrategy {
     private HttpStatus httpStatus;
@@ -28,13 +29,14 @@ public class CustomRedirectStrategy implements ServerRedirectStrategy {
             response.getHeaders().setLocation(createLocation(exchange, location));
             String token = exchange.getResponse().getHeaders().getFirst("x-auth-token");
             response.getHeaders().remove("x-auth-token");
-            response.getHeaders().add("blabla", "blaBlaBla");
             if (!StringUtils.isEmpty(token)) {
                 ResponseCookie tokenCookie = ResponseCookie
                     .from("x-auth-token", token)
                     .path("/")
+                    .maxAge(Duration.ofMinutes(2))
                     .httpOnly(true)
                     .build();
+                //temporary cookie ttl=2min just for first redirect after successful authentication
                 response.getCookies().add("x-auth-token", tokenCookie);
             }
         });
