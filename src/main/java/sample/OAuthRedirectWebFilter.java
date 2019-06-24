@@ -2,9 +2,7 @@ package sample;
 
 import org.springframework.security.oauth2.client.ClientAuthorizationRequiredException;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.web.server.ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
-import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.server.DefaultServerRedirectStrategy;
@@ -20,7 +18,6 @@ import java.net.URI;
 public class OAuthRedirectWebFilter implements WebFilter {
     private final ServerRedirectStrategy authorizationRedirectStrategy = new DefaultServerRedirectStrategy();
     private final ServerOAuth2AuthorizationRequestResolver authorizationRequestResolver;
-    private ServerAuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository = new WebSessionOAuth2ServerAuthorizationRequestRepository();
 
     public OAuthRedirectWebFilter(ClientRegistration clientRegistration) {
         this.authorizationRequestResolver = new StatelessOauthRequestResolver(clientRegistration);
@@ -38,8 +35,8 @@ public class OAuthRedirectWebFilter implements WebFilter {
     private Mono<Void> sendRedirectForAuthorization(ServerWebExchange exchange, OAuth2AuthorizationRequest authorizationRequest) {
         return Mono.defer(() -> {
             Mono<Void> saveAuthorizationRequest = Mono.empty();
-            if (AuthorizationGrantType.AUTHORIZATION_CODE.equals(authorizationRequest.getGrantType())) {
-                saveAuthorizationRequest = this.authorizationRequestRepository.saveAuthorizationRequest(authorizationRequest, exchange);
+            if (!AuthorizationGrantType.AUTHORIZATION_CODE.equals(authorizationRequest.getGrantType())) {
+                return Mono.error(new IllegalArgumentException("wrong authorization_code"));
             }
 
             URI redirectUri = UriComponentsBuilder.fromUriString(authorizationRequest.getAuthorizationRequestUri()).build(true).toUri();

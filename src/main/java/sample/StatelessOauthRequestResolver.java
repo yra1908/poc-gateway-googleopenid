@@ -44,7 +44,7 @@ public class StatelessOauthRequestResolver implements ServerOAuth2AuthorizationR
     }
 
     private OAuth2AuthorizationRequest authorizationRequest(ServerWebExchange exchange, ClientRegistration clientRegistration) {
-        String redirectUriStr = this.expandRedirectUri(exchange.getRequest(), clientRegistration);
+        String redirectUriStr = OAuthUtils.expandRedirectUri(exchange.getRequest(), clientRegistration);
         Map<String, Object> additionalParameters = new HashMap();
         additionalParameters.put("registration_id", clientRegistration.getRegistrationId());
         OAuth2AuthorizationRequest.Builder builder;
@@ -59,18 +59,5 @@ public class StatelessOauthRequestResolver implements ServerOAuth2AuthorizationR
         }
 
         return builder.clientId(clientRegistration.getClientId()).authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri()).redirectUri(redirectUriStr).scopes(clientRegistration.getScopes()).state(this.stateGenerator.generateKey()).additionalParameters(additionalParameters).build();
-    }
-
-    private String expandRedirectUri(ServerHttpRequest request, ClientRegistration clientRegistration) {
-        Map<String, String> uriVariables = new HashMap();
-        uriVariables.put("registrationId", clientRegistration.getRegistrationId());
-        String baseUrl = UriComponentsBuilder.fromHttpRequest(new ServerHttpRequestDecorator(request)).replacePath(request.getPath().contextPath().value()).replaceQuery((String)null).build().toUriString();
-        uriVariables.put("baseUrl", baseUrl);
-        if (AuthorizationGrantType.AUTHORIZATION_CODE.equals(clientRegistration.getAuthorizationGrantType())) {
-            String loginAction = "login";
-            uriVariables.put("action", loginAction);
-        }
-
-        return UriComponentsBuilder.fromUriString(clientRegistration.getRedirectUriTemplate()).buildAndExpand(uriVariables).toUriString();
     }
 }

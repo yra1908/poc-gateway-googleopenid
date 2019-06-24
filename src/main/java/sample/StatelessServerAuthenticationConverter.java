@@ -3,13 +3,12 @@ package sample;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.web.server.ServerAuthorizationRequestRepository;
-import org.springframework.security.oauth2.client.web.server.WebSessionOAuth2ServerAuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationExchange;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponse;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.web.server.authentication.ServerAuthenticationConverter;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
@@ -17,32 +16,19 @@ import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class StatelessServerAuthenticationConverter implements ServerAuthenticationConverter {
-    private ServerAuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository = new WebSessionOAuth2ServerAuthorizationRequestRepository();
     private final ClientRegistration clientRegistration;
 
     public StatelessServerAuthenticationConverter(ClientRegistration clientRegistration) {
         this.clientRegistration = clientRegistration;
     }
 
-
     @Override
-    public Mono<Authentication> convert(ServerWebExchange serverWebExchange) {
-        return this.authorizationRequestRepository.removeAuthorizationRequest(serverWebExchange)
-            .switchIfEmpty(this.oauth2AuthorizationException("authorization_request_not_found"))
-            .flatMap((authorizationRequest) -> {
-                return this.authenticationRequest(serverWebExchange, authorizationRequest);
-        });
-    }
-
-    private <T> Mono<T> oauth2AuthorizationException(String errorCode) {
-        return Mono.defer(() -> {
-            OAuth2Error oauth2Error = new OAuth2Error(errorCode);
-            return Mono.error(new OAuth2AuthorizationException(oauth2Error));
-        });
-    }
-
-    private Mono<OAuth2AuthorizationCodeAuthenticationToken> authenticationRequest(ServerWebExchange exchange, OAuth2AuthorizationRequest authorizationRequest) {
+    public Mono<Authentication> convert(ServerWebExchange exchange) {
+        OAuth2AuthorizationRequest authorizationRequest = buildAuthorizationRequest(exchange, clientRegistration);
         return Mono.just(authorizationRequest).map((client) -> {
             OAuth2AuthorizationResponse authorizationResponse = convertResponse(exchange);
             OAuth2AuthorizationCodeAuthenticationToken authenticationRequest =
@@ -50,6 +36,31 @@ public class StatelessServerAuthenticationConverter implements ServerAuthenticat
                     clientRegistration,
                     new OAuth2AuthorizationExchange(authorizationRequest, authorizationResponse));
             return authenticationRequest;
+        });
+    }
+
+    private OAuth2AuthorizationRequest buildAuthorizationRequest(ServerWebExchange exchange, ClientRegistration clientRegistration) {
+        Map<String, Object> additionalParams = new HashMap<>();
+        additionalParams.put("registrationId", clientRegistration.getRegistrationId());
+        return OAuth2AuthorizationRequest.authorizationCode()
+            .authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri())
+            .clientId(clientRegistration.getClientId())
+            //TODO:YC
+            .redirectUri(OAuthUtils.expandRedirectUri(exchange.getRequest(), clientRegistration))
+            .scopes(clientRegistration.getScopes())
+            .state(getStateParameter(exchange))
+            .additionalParameters(additionalParams)
+            .build();
+    }
+
+    private String getStateParameter(ServerWebExchange exchange) {
+        return exchange.getRequest().getQueryParams().getFirst(OAuth2ParameterNames.STATE);
+    }
+
+    private <T> Mono<T> oauth2AuthorizationException(String errorCode) {
+        return Mono.defer(() -> {
+            OAuth2Error oauth2Error = new OAuth2Error(errorCode);
+            return Mono.error(new OAuth2AuthorizationException(oauth2Error));
         });
     }
 
