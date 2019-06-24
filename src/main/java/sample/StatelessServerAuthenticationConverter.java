@@ -45,7 +45,6 @@ public class StatelessServerAuthenticationConverter implements ServerAuthenticat
         return OAuth2AuthorizationRequest.authorizationCode()
             .authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri())
             .clientId(clientRegistration.getClientId())
-            //TODO:YC
             .redirectUri(OAuthUtils.expandRedirectUri(exchange.getRequest(), clientRegistration))
             .scopes(clientRegistration.getScopes())
             .state(getStateParameter(exchange))
