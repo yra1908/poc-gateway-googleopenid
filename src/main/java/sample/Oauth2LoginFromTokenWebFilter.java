@@ -1,5 +1,6 @@
 package sample;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -10,6 +11,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuth
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
@@ -56,7 +58,6 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
 
     private Mono<Void> authenticate(ServerWebExchange exchange, WebFilterChain chain, String idToken) {
         WebFilterExchange webFilterExchange = new WebFilterExchange(exchange, chain);
-        exchange.getResponse().getHeaders().add("x-auth-token", idToken);
         return this.jwtService.retrieveAuthenticationFromToken(idToken)
             .switchIfEmpty(Mono.defer(() -> {
                 return Mono.error(new IllegalStateException("Error extracting Authentication from token. Token Not valid"));
@@ -75,6 +76,7 @@ public class Oauth2LoginFromTokenWebFilter extends AuthenticationWebFilter {
 
     @Override
     protected Mono<Void> onAuthenticationSuccess(Authentication authentication, WebFilterExchange webFilterExchange) {
+        OAuthUtils.addAuthorizationHeaderToResponse(authentication, webFilterExchange.getExchange());
         OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken) authentication;
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());

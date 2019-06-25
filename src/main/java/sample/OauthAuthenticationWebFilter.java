@@ -36,12 +36,8 @@ public class OauthAuthenticationWebFilter extends AuthenticationWebFilter {
     }
 
     protected Mono<Void> onAuthenticationSuccess(Authentication authentication, WebFilterExchange webFilterExchange) {
-        ServerWebExchange exchange = webFilterExchange.getExchange();
+        OAuthUtils.addAuthorizationHeaderToResponse(authentication, webFilterExchange.getExchange());
         OAuth2LoginAuthenticationToken authenticationResult = (OAuth2LoginAuthenticationToken)authentication;
-        DefaultOidcUser principal = (DefaultOidcUser) authenticationResult.getPrincipal();
-        String tokenValue = principal.getIdToken().getTokenValue();
-        //TODO:YC to think about another way to transfering idToken to To CustomRedirectStrategy
-        exchange.getResponse().getHeaders().add("x-auth-token", tokenValue);
         OAuth2AuthorizedClient authorizedClient = new OAuth2AuthorizedClient(authenticationResult.getClientRegistration(), authenticationResult.getName(), authenticationResult.getAccessToken(), authenticationResult.getRefreshToken());
         OAuth2AuthenticationToken result = new OAuth2AuthenticationToken(authenticationResult.getPrincipal(), authenticationResult.getAuthorities(), authenticationResult.getClientRegistration().getRegistrationId());
         return super.onAuthenticationSuccess(result, webFilterExchange);

@@ -1,5 +1,6 @@
 package sample;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -27,11 +28,10 @@ public class CustomRedirectStrategy implements ServerRedirectStrategy {
             ServerHttpResponse response = exchange.getResponse();
             response.setStatusCode(this.httpStatus);
             response.getHeaders().setLocation(createLocation(exchange, location));
-            String token = exchange.getResponse().getHeaders().getFirst("x-auth-token");
-            response.getHeaders().remove("x-auth-token");
+            String token = exchange.getResponse().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             if (!StringUtils.isEmpty(token)) {
                 ResponseCookie tokenCookie = ResponseCookie
-                    .from("x-auth-token", token)
+                    .from("x-auth-token", token.substring(OAuthUtils.BEARER_TOKEN_PREFIX.length()))
                     .path("/")
                     .maxAge(Duration.ofMinutes(2))
                     .httpOnly(true)
