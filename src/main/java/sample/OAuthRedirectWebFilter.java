@@ -25,11 +25,14 @@ public class OAuthRedirectWebFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        return this.authorizationRequestResolver.resolve(exchange).switchIfEmpty(chain.filter(exchange).then(Mono.empty())).onErrorResume(ClientAuthorizationRequiredException.class, (e) -> {
-            return this.authorizationRequestResolver.resolve(exchange, e.getClientRegistrationId());
-        }).flatMap((clientRegistration) -> {
-            return this.sendRedirectForAuthorization(exchange, clientRegistration);
-        });
+        return this.authorizationRequestResolver.resolve(exchange)
+            .switchIfEmpty(chain.filter(exchange).then(Mono.empty()))
+            .onErrorResume(ClientAuthorizationRequiredException.class, (e) -> {
+                return this.authorizationRequestResolver.resolve(exchange, e.getClientRegistrationId());
+            })
+            .flatMap((clientRegistration) -> {
+                return this.sendRedirectForAuthorization(exchange, clientRegistration);
+            });
     }
 
     private Mono<Void> sendRedirectForAuthorization(ServerWebExchange exchange, OAuth2AuthorizationRequest authorizationRequest) {

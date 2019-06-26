@@ -94,7 +94,13 @@ public class JWTServiceGoogle implements JWTService {
                     .redirectUri(redirectUri)
                     .state(state)
                     .build());
-            return Mono.just(new OAuth2LoginAuthenticationToken(clientRegistration, exchangeStub, user, user.getAuthorities(), accessToken, null));
+            return Mono.just(new OAuth2LoginAuthenticationToken(
+                clientRegistration,
+                exchangeStub,
+                user,
+                user.getAuthorities(),
+                accessToken,
+                null));
         } catch (Exception e) {
             e.printStackTrace();
             return Mono.empty();

@@ -22,7 +22,8 @@ public class StatelessOauthRequestResolver implements ServerOAuth2AuthorizationR
     public static final String DEFAULT_REGISTRATION_ID_URI_VARIABLE_NAME = "registrationId";
     public static final String DEFAULT_AUTHORIZATION_REQUEST_PATTERN = "/oauth2/authorization/{registrationId}";
     private final StringKeyGenerator stateGenerator= new Base64StringKeyGenerator(Base64.getUrlEncoder());
-    private final ServerWebExchangeMatcher authorizationRequestMatcher =  new PathPatternParserServerWebExchangeMatcher(DEFAULT_AUTHORIZATION_REQUEST_PATTERN);
+    private final ServerWebExchangeMatcher authorizationRequestMatcher =
+        new PathPatternParserServerWebExchangeMatcher(DEFAULT_AUTHORIZATION_REQUEST_PATTERN);
     private final ClientRegistration clientRegistration;
 
     public StatelessOauthRequestResolver(ClientRegistration clientRegistration) {
@@ -52,12 +53,21 @@ public class StatelessOauthRequestResolver implements ServerOAuth2AuthorizationR
             builder = OAuth2AuthorizationRequest.authorizationCode();
         } else {
             if (!AuthorizationGrantType.IMPLICIT.equals(clientRegistration.getAuthorizationGrantType())) {
-                throw new IllegalArgumentException("Invalid Authorization Grant Type (" + clientRegistration.getAuthorizationGrantType().getValue() + ") for Client Registration with Id: " + clientRegistration.getRegistrationId());
+                throw new IllegalArgumentException("Invalid Authorization Grant Type (" +
+                    clientRegistration.getAuthorizationGrantType().getValue() + ") for Client Registration with Id: " +
+                    clientRegistration.getRegistrationId());
             }
 
             builder = OAuth2AuthorizationRequest.implicit();
         }
 
-        return builder.clientId(clientRegistration.getClientId()).authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri()).redirectUri(redirectUriStr).scopes(clientRegistration.getScopes()).state(this.stateGenerator.generateKey()).additionalParameters(additionalParameters).build();
+        return builder
+            .clientId(clientRegistration.getClientId())
+            .authorizationUri(clientRegistration.getProviderDetails().getAuthorizationUri())
+            .redirectUri(redirectUriStr)
+            .scopes(clientRegistration.getScopes())
+            .state(this.stateGenerator.generateKey())
+            .additionalParameters(additionalParameters)
+            .build();
     }
 }

@@ -65,7 +65,10 @@ public class StatelessServerAuthenticationConverter implements ServerAuthenticat
 
     private static OAuth2AuthorizationResponse convertResponse(ServerWebExchange exchange) {
         MultiValueMap<String, String> queryParams = exchange.getRequest().getQueryParams();
-        String redirectUri = UriComponentsBuilder.fromUri(exchange.getRequest().getURI()).query((String)null).build().toUriString();
+        String redirectUri = UriComponentsBuilder.fromUri(exchange.getRequest().getURI())
+            .query((String)null)
+            .build()
+            .toUriString();
         return convert(queryParams, redirectUri);
     }
 
@@ -74,11 +77,18 @@ public class StatelessServerAuthenticationConverter implements ServerAuthenticat
         String errorCode = (String)request.getFirst("error");
         String state = (String)request.getFirst("state");
         if (StringUtils.hasText(code)) {
-            return OAuth2AuthorizationResponse.success(code).redirectUri(redirectUri).state(state).build();
+            return OAuth2AuthorizationResponse.success(code)
+                .redirectUri(redirectUri)
+                .state(state)
+                .build();
         } else {
             String errorDescription = (String)request.getFirst("error_description");
             String errorUri = (String)request.getFirst("error_uri");
-            return OAuth2AuthorizationResponse.error(errorCode).redirectUri(redirectUri).errorDescription(errorDescription).errorUri(errorUri).state(state).build();
+            return OAuth2AuthorizationResponse.error(errorCode)
+                .redirectUri(redirectUri)
+                .errorDescription(errorDescription)
+                .errorUri(errorUri)
+                .state(state).build();
         }
     }
 }
